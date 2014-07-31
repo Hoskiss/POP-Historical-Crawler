@@ -8,7 +8,9 @@ var $ = require('cheerio'),
     Set = require("collections/set");
 
 var output_file_path = "./north_history_tmp.csv";
-var title_row = "id, address, area, category, base price, sale price, competitors count, details, notes";
+// remove origin "details" item
+// var title_row = "id, address, area, category, base price, sale price, competitors count, details, notes";
+var title_row = "id, address, area, category, base price, sale price, competitors count, notes";
 fs.writeFileSync(output_file_path, title_row+"\n");
 
 var options = {
@@ -121,9 +123,9 @@ function rearrangeEveryItems(total_elems) {
                         total_elems[elem_index] = "\""+total_elems[elem_index]+"\"";
                     }
 
-                    // 5, 6, 7 => base price, sale price, competitors count
+                    // 5, 6, 7, 8, 9 => base price, sale price, competitors count, details, notes
                     // copy prev existing value of same id item if self is blank
-                    if(!total_elems[elem_index] && item_count > 4 && item_count < 8 &&
+                    if(!total_elems[elem_index] && item_count > 4 &&
                        each_row[0] === tabular_total_elems[curr_row_index-1][0]) {
                         total_elems[elem_index] = tabular_total_elems[curr_row_index-1][item_count-1];
                     }
@@ -138,10 +140,9 @@ function rearrangeEveryItems(total_elems) {
             while(item_count < title_row.split(",").length) {
                 ++item_count;
 
-                // 5, 6, 7 => base price, sale price, competitors count
+                // 5, 6, 7, 8, 9 => base price, sale price, competitors count, details, notes
                 // copy prev existing value of same id item if self is blank
-                if(item_count > 4 && item_count < 8 &&
-                   each_row[0] === tabular_total_elems[curr_row_index-1][0]) {
+                if(item_count > 4 && each_row[0] === tabular_total_elems[curr_row_index-1][0]) {
                     each_row.push(tabular_total_elems[curr_row_index-1][item_count-1]);
                 } else {
                     each_row.push(" ");
@@ -150,6 +151,9 @@ function rearrangeEveryItems(total_elems) {
 
             tabular_total_elems.push(each_row);
             ++curr_row_index;
+
+            // remove origin "details" item
+            console.log(each_row.splice(7, 1));
             fs.appendFileSync(output_file_path, each_row.toString()+"\n");
         } else {
             ++elem_index;
