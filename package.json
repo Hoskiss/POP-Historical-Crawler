@@ -1,0 +1,16 @@
+{
+    "name": "POP_history_crawler",
+    "version": "0.0.1",
+    "description": "POP history crawler",
+    "author": "Hoskiss Lin",
+
+    "dependencies": {
+        "cheerio": "*",
+        "iconv-lite": "*",
+        "bufferhelper": "*",
+        "collections": "*",
+        "promise": "*"
+    }
+}
+
+
