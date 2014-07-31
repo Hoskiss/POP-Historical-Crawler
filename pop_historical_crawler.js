@@ -153,8 +153,10 @@ function rearrangeEveryItems(total_elems) {
             ++curr_row_index;
 
             // remove origin "details" item
-            console.log(each_row.splice(7, 1));
-            fs.appendFileSync(output_file_path, each_row.toString()+"\n");
+            // error with each_row.splice(7, 1)
+            var to_write_row = each_row.slice(0, 7);
+            to_write_row.push(each_row[8]);
+            fs.appendFileSync(output_file_path, to_write_row.toString()+"\n");
         } else {
             ++elem_index;
         }
