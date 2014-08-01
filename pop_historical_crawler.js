@@ -2,7 +2,7 @@
 var fs = require('fs'),
     $ = require('cheerio'),
     http = require('http'),
-    Promise = require('promise'),
+    Promise = require('bluebird'),
     iconv = require('iconv-lite'),
     Set = require("collections/set"),
     BufferHelper = require('bufferhelper');
@@ -25,11 +25,25 @@ function copy(ori_o) {
     return copy_obj;
 }
 
-function requestPromise(options) {
+// req_options can be string or object
+function requestPromise(req_options) {
     // Return a new promise.
     return new Promise(function(resolve, reject) {
 
-        var req = http.request(options, function(res) {
+        var check_options = {};
+        if("object" === typeof req_options) {
+            check_options = copy(req_options);
+        } else if ("string" === typeof req_options) {
+            check_options = {
+                host: "www.fnpn.gov.tw",
+                method: 'GET'
+            };
+            check_options.path = req_options;
+        } else {
+            reject("Error: Invalid request options " + req_options);
+        }
+
+        var req = http.request(check_options, function(res) {
             var bufferhelper = new BufferHelper();
             // big-5 conding
             // res.setEncoding('utf-8');
@@ -67,7 +81,8 @@ function parseTimestampLinks(raw_page) {
     $(raw_page).find(start_end_timestamp_pattern).each(function () {
         category_announce_bid_list.push($(this).text());
     });
-    var start_end_timestamp = category_announce_bid_list[29].trim() + "_" + category_announce_bid_list[2].trim();
+    var start_end_timestamp = (category_announce_bid_list[category_announce_bid_list.length-1].trim() +
+                               "_" + category_announce_bid_list[2].trim());
     start_end_timestamp = start_end_timestamp.replace(/-/g, "_");
 
     var timestamp_links = {};
@@ -77,41 +92,30 @@ function parseTimestampLinks(raw_page) {
 }
 
 function initOutputFile(timestamp_links) {
-    output_file_path = "./north_historical_" + timestamp_links.timestamp + ".csv";
+    this.output_file_path = "./north_historical_" + timestamp_links.timestamp + ".csv";
     // remove origin "details" item
     // var title_row = "id, address, area, category, base price, sale price, competitors count, details, notes";
     var title_row = "id, address, area, category, base price, sale price, competitors count, notes";
-    fs.writeFileSync(output_file_path, title_row + "\n");
+    fs.writeFileSync(this.output_file_path, title_row + "\n");
 
-    var file_path_links = {};
-    file_path_links.file_path = output_file_path;
-    file_path_links = timestamp_links.every_links;
     return timestamp_links.every_links;
 }
 
 function crawlerLinks(every_links) {
+    var this_output_file_path = this.output_file_path;
     // links array => options array
     return every_links.map(
-        transformOptions).map(
         requestPromise).reduce(function(sequence, request_link) {
             return sequence.then(function() {
                 return request_link;
+            }).bind({
+                output_file_path: this_output_file_path
             }).then(
                 collectEveryItems
             ).then(
                 rearrangeEveryItems
             );
         }, Promise.resolve());
-}
-
-function transformOptions(link) {
-    var each_options = {
-        host: "www.fnpn.gov.tw",
-        method: 'GET'
-    };
-
-    each_options.path = link;
-    return each_options;
 }
 
 function collectEveryItems(raw_page) {
@@ -213,7 +217,7 @@ function rearrangeEveryItems(id_elems) {
             // error with each_row.splice(7, 1)
             var to_write_row = each_row.slice(0, 7);
             to_write_row.push(each_row[8]);
-            fs.appendFileSync(output_file_path, to_write_row.toString()+"\n");
+            fs.appendFileSync(this.output_file_path, to_write_row.toString()+"\n");
         } else {
             ++elem_index;
         }
@@ -221,9 +225,8 @@ function rearrangeEveryItems(id_elems) {
 }
 
 function parseOnePageToCSV(page_options) {
-    var output_file_path = "";
-
-    requestPromise(page_options).then(
+    requestPromise(page_options).bind({
+        output_file_path: ""}).then(
         parseTimestampLinks
     ).then(
         initOutputFile
@@ -234,11 +237,31 @@ function parseOnePageToCSV(page_options) {
     });
 }
 
+function calcuEveryPageLinks(raw_page) {
+    var last_page_pattern = 'img[alt^="最後一頁"]';
+    var last_page_link = $(raw_page).find(last_page_pattern).parent().attr('href');
+
+    // "/ct/CFT.php?page=CFTMain2&startItem=40"
+    var last_start_item = last_page_link.match(/startItem=(\d+)/)[1];
+    var every_page_links = [];
+    // 10 items per page
+    for (var offset=0; offset<=parseInt(last_start_item, 10); offset+=10) {
+        every_page_links.push("/ct/CFT.php?page=CFTMain2&startItem=" + offset.toString());
+    }
+
+    return every_page_links;
+}
+
 var init_options = {
     host: "www.fnpn.gov.tw",
     path: "/ct/CFT.php?page=CFTMain2&area=N000",
     method: 'GET'
 };
 
-parseOnePageToCSV(init_options);
-
+requestPromise(init_options).then(
+    calcuEveryPageLinks
+).then(function(every_page_links) {
+    every_page_links.map(parseOnePageToCSV);
+}).catch(function(err) {
+    console.log(err);
+});

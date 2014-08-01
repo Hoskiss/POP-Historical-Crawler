@@ -6,10 +6,10 @@
 
     "dependencies": {
         "cheerio": "*",
+        "bluebird": "*",
         "iconv-lite": "*",
-        "bufferhelper": "*",
         "collections": "*",
-        "promise": "*"
+        "bufferhelper": "*"
     }
 }
 
