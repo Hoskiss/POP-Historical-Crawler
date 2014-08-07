@@ -127,11 +127,13 @@ function collectEveryItems(raw_page) {
 
     var year_group_pattern = 'td.text-11-sub-green div.12-oran-warning';
     var year_group = $(raw_page).find(year_group_pattern).text().match(/(\d+)/g);
-    var group_id = year_group[0];
+    // bid started date (year+month+day)
+    var group_id = year_group.slice(5, 8).join("") + "_";
+
     if(1 === year_group[1].length) {
-        group_id += ("0"+year_group[1]);
+        group_id += ("0"+year_group[1]+"_");
     } else {
-        group_id += year_group[1];
+        group_id += (year_group[1]+"_");
     }
 
     var id_elems = {};
